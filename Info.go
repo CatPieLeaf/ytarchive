@@ -158,6 +158,7 @@ type DownloadInfo struct {
 	Metadata   MetaInfo
 	CookiesURL *url.URL
 	Ytcfg      *YTCFG
+	VisitorData string
 	PoToken    string
 
 	Stopping         bool
@@ -1463,7 +1464,7 @@ func (di *DownloadInfo) DownloadStream(dataType, dataFile string, progressChan c
 		}
 
 		updateDelta := di.GetTimeSinceUpdated()
-		if !stopping && !di.IsUnavailable() && updateDelta > time.Hour {
+		if !stopping && !di.IsUnavailable() && updateDelta > 5 * time.Hour + 59 * time.Minute {
 			di.GetVideoInfo()
 		}
 

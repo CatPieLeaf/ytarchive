@@ -25,7 +25,8 @@ const (
 		'client': {
 			'clientName': '%s',
 			'clientVersion': '%s',
-			'hl': 'en'
+			'hl': 'en',
+			'visitorData': '%s'
 		}
 	},
 	'videoId': '%s',
@@ -281,7 +282,14 @@ func (di *DownloadInfo) DownloadWebPlayerResponse() (*PlayerResponse, error) {
 		queryParams = fmt.Sprintf("?innertube_key=%s", ytcfg.InnertubeApiKey)
 	}
 
-	data := []byte(fmt.Sprintf(WebAPIPostData, ytcfg.InnertubeClientName, ytcfg.InnertubeClientVersion, di.VideoID, di.PoToken))
+	VisitorData := ""
+	if len(di.VisitorData) > 0 {
+		VisitorData = di.VisitorData
+	} else if len(ytcfg.VisitorData) > 0 {
+		VisitorData = ytcfg.VisitorData
+	}
+
+	data := []byte(fmt.Sprintf(WebAPIPostData, ytcfg.InnertubeClientName, ytcfg.InnertubeClientVersion, VisitorData, di.VideoID, di.PoToken))
 	req, err := http.NewRequest("POST", fmt.Sprintf("https://www.youtube.com/youtubei/v1/player%s", queryParams), bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
@@ -305,8 +313,8 @@ func (di *DownloadInfo) DownloadWebPlayerResponse() (*PlayerResponse, error) {
 		req.Header.Add("X-Goog-PageId", ytcfg.DelegatedSessionId)
 	}
 
-	if len(ytcfg.VisitorData) > 0 {
-		req.Header.Add("X-Goog-Visitor-Id", ytcfg.VisitorData)
+	if len(VisitorData) > 0 {
+		req.Header.Add("X-Goog-Visitor-Id", VisitorData)
 	}
 
 	if len(ytcfg.SessionIndex) > 0 {
@@ -394,6 +402,9 @@ func (di *DownloadInfo) GetPlayablePlayerResponse() (retrieved int, pr *PlayerRe
 	waitOnLiveURL := isLiveURL && di.RetrySecs > 0 && !di.InProgress
 	liveWaited := 0
 	retryCount := 0
+	responseRetryCount := 0
+	videoDetailsRetryCount := 0
+	const MAX_RETRIES = 3
 	var secsLate int
 	var err error
 
@@ -436,12 +447,28 @@ func (di *DownloadInfo) GetPlayablePlayerResponse() (retrieved int, pr *PlayerRe
 				continue
 			}
 
+			if responseRetryCount < MAX_RETRIES {
+				responseRetryCount++
+				LogWarn("Error retrieving player response: %s (Retry %d/%d)", err.Error(), responseRetryCount, MAX_RETRIES)
+				client.CloseIdleConnections()
+				time.Sleep(time.Duration(2) * time.Second)
+				continue
+			}
+
 			fmt.Fprintln(os.Stderr)
-			LogError("Error retrieving player response: %s", err.Error())
+			LogError("Error retrieving player response, max retries reached.")
 			return PlayerResponseNotFound, nil, nil
 		}
 
 		if len(pr.VideoDetails.VideoID) == 0 {
+			if videoDetailsRetryCount < MAX_RETRIES {
+				videoDetailsRetryCount++
+				LogWarn("Video Details not found, video may be private or does not exist. (Retry %d/%d)", videoDetailsRetryCount, MAX_RETRIES)
+				client.CloseIdleConnections()
+				time.Sleep(time.Duration(2) * time.Second)
+				continue
+			}
+
 			if di.InProgress {
 				LogWarn("Video details no longer available mid download.")
 				LogWarn("Stream was likely privated after finishing.")
@@ -449,7 +476,7 @@ func (di *DownloadInfo) GetPlayablePlayerResponse() (retrieved int, pr *PlayerRe
 				di.printStatusWithoutLock()
 			}
 
-			LogError("Video Details not found, video is likely private or does not exist.")
+			LogError("Video Details not found, max retries reached.")
 			di.Live = false
 			di.Unavailable = true
 
