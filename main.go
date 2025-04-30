@@ -433,7 +433,6 @@ var (
 	ffmpegPath        string
 	execBefore        string
 	execAfter         string
-	proxyUrl          *url.URL
 	liveFrom          string
 	startDelayStr     string
 	capDurationStr    string
