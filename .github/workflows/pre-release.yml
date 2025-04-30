@@ -29,7 +29,9 @@ jobs:
           prerelease: true
           title: ${{ steps.version.outputs.version }}
           files: |
-            ytarchive_linux_amd64.zip
             ytarchive_windows_amd64.zip
+            ytarchive_windows_arm64.zip
+            ytarchive_linux_amd64.zip
+            ytarchive_linux_arm64.zip
+            ytarchive_android_arm64.zip
             SHA2-256SUMS
-
