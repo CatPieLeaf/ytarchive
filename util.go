@@ -339,22 +339,22 @@ func Execute(prog string, args []string) int {
 }
 
 // Download data from the given URL
-func DownloadData(url string) []byte {
+func DownloadData(url string) ([]byte, error) {
 	var data []byte
 	resp, err := client.Get(url)
 	if err != nil {
 		LogWarn("Failed to retrieve data from %s: %v", url, err)
-		return data
+		return data, err
 	}
 	defer resp.Body.Close()
 
 	data, err = io.ReadAll(resp.Body)
 	if err != nil {
 		LogWarn("Failed to retrieve data from %s: %v", url, err)
-		return data
+		return data, err
 	}
 
-	return data
+	return data, nil
 }
 
 /*

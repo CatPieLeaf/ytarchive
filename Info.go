@@ -718,7 +718,10 @@ func (di *DownloadInfo) GetDownloadUrls(pr *PlayerResponse) map[int]string {
 	} else {
 		if len(WebPlayerResponse.StreamingData.DashManifestURL) > 0 {
 			LogDebug("Retrieving URLs from Web API DASH manifest")
-			manifest := DownloadData(WebPlayerResponse.StreamingData.DashManifestURL)
+			manifest, err := DownloadData(WebPlayerResponse.StreamingData.DashManifestURL)
+			if err != nil {
+				return urls
+			}
 			if len(manifest) > 0 {
 				// we store the LastSq to calculate 5 days past
 				urls, di.LastSq = GetUrlsFromManifest(manifest, di.PoToken)
@@ -747,7 +750,10 @@ func (di *DownloadInfo) GetDownloadUrls(pr *PlayerResponse) map[int]string {
 
 	if len(pr.StreamingData.DashManifestURL) > 0 {
 		LogDebug("Retrieving URLs from web DASH manifest")
-		manifest := DownloadData(pr.StreamingData.DashManifestURL)
+		manifest, err := DownloadData(pr.StreamingData.DashManifestURL)
+		if err != nil {
+			return urls
+		}
 		if len(manifest) > 0 {
 			// we store the LastSq to calculate 5 days past
 			dashUrls, lastSq := GetUrlsFromManifest(manifest, di.PoToken)

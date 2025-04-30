@@ -217,10 +217,13 @@ func (di *DownloadInfo) GetNewestStreamFromStreams() string {
 	initialData := &YtInitialData{}
 	var contents []RichGridContent
 	streamsUrl := strings.Replace(di.URL, "/live", "/streams", 1)
-	streamsHtml := DownloadData(streamsUrl)
+	streamsHtml, err := DownloadData(streamsUrl)
+	if err != nil {
+		return streamsUrl
+	}
 	ytInitialData := GetJsonFromHtml(streamsHtml, ytInitialDataDecl)
 
-	err := json.Unmarshal(ytInitialData, initialData)
+	err = json.Unmarshal(ytInitialData, initialData)
 	if err != nil {
 		return streamUrl
 	}
@@ -347,18 +350,39 @@ func (di *DownloadInfo) DownloadWebPlayerResponse() (*PlayerResponse, error) {
 }
 
 func (di *DownloadInfo) GetVideoHtml() []byte {
-	var videoHtml []byte
+	var (
+		videoHtml []byte
+		err       error
+		tries     uint
+	)
 
-	if di.LiveURL {
-		streamUrl := di.GetNewestStreamFromStreams()
+	for tries < di.FragMaxTries || di.FragMaxTries == 0 {
+		if di.LiveURL {
+			streamUrl := di.GetNewestStreamFromStreams()
 
-		if len(streamUrl) > 0 {
-			videoHtml = DownloadData(streamUrl)
+			if len(streamUrl) > 0 {
+				videoHtml, err = DownloadData(streamUrl)
+			}
 		}
-	}
 
-	if len(videoHtml) == 0 && !di.MembersOnly {
-		videoHtml = DownloadData(di.URL)
+		if len(videoHtml) == 0 && !di.MembersOnly {
+			videoHtml, err = DownloadData(di.URL)
+		}
+
+		if err == nil {
+			break
+		}
+
+		tries++
+		LogDebug("Trying to get video HTML (%d/%d retries), err: %s", tries+1, di.FragMaxTries, err)
+		switch {
+		case tries == 0:
+			continue
+		case tries > 0 && tries < 5:
+			time.Sleep(time.Duration(tries) * time.Millisecond)
+		default:
+			time.Sleep(4 * time.Second)
+		}
 	}
 
 	return videoHtml
