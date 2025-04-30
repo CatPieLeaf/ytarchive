@@ -426,6 +426,7 @@ func (di *DownloadInfo) printChannelAndTitle(pr *PlayerResponse) {
 	}
 
 	LogGeneral("Channel: %s\n", pr.VideoDetails.Author)
+	LogGeneral("VideoID: %s\n", pr.VideoDetails.VideoID)
 	LogGeneral("Video Title: %s\n", pr.VideoDetails.Title)
 	di.InfoPrinted = true
 }
